@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courier Tracking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            position: relative;
+        }
+
+        h2, h3 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: block;
+            color: #555;
+        }
+
+        input[type="datetime-local"],
+        select {
+            width: calc(100% - 20px);
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #007bff; /* Blue border */
+            border-radius: 4px;
+            background-color: #f0f8ff; /* Light background */
+            transition: border-color 0.3s, background-color 0.3s; /* Smooth transition */
+        }
+
+        input[type="datetime-local"]:focus,
+        select:focus {
+            border-color: #0056b3; /* Darker blue when focused */
+            background-color: #e6f7ff; /* Slightly darker background on focus */
+            outline: none; /* Remove default outline */
+        }
+
+        button {
+            width: 100%;
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Container for the scrollable table */
+        .table-container {
+            width: 90%;
+            margin: 20px auto;
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        #response {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        /* Loading bar styles */
+        #loadingBar {
+            width: 100%;
+            background-color: #f3f3f3;
+            height: 4px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: none;
+        }
+
+        #loadingBar div {
+            height: 100%;
+            width: 0;
+            background-color: #007bff;
+            animation: loading 2s linear infinite;
+        }
+
+        @keyframes loading {
+            0% { width: 0; }
+            100% { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<h2>Download Data</h2>
+
+<button type="button" 
+        id="backButton" 
+        style="position: absolute; top: 10px; right: 10px; background-color: red; color: white; padding: 5px 10px; width: auto; min-width: 100px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer;"
+        onclick="window.location.href='index.html';">Back</button>
+
+<!-- Loading Bar -->
+<div id="loadingBar">
+    <div></div>
+</div>
+
+<form id="downloadForm">
+    <label for="courierPartner">Courier Partner:</label>
+    <select id="courierPartner" name="courier_partner" required>
+        <option value="Shiprocket">Shiprocket</option>
+        <option value="DTDC">DTDC</option>
+        <option value="Delhivery">Delhivery</option>
+    </select><br>
+
+    <label for="startDate">Start Date:</label>
+    <input type="datetime-local" id="startDate" name="startDate" required>
+    <label for="endDate">End Date:</label>
+    <input type="datetime-local" id="endDate" name="endDate" required>
+    <button type="submit">Download CSV</button>
+</form>
+
+<script>
+    // Helper function to format date to 'YYYY-MM-DDTHH:MM'
+    function formatDateToLocalInput(date) {
+        const padZero = num => String(num).padStart(2, '0');
+        return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}T${padZero(date.getHours())}:${padZero(date.getMinutes())}`;
+    }
+
+    // Set default dates for startDate (3 months ago) and endDate (today)
+    window.onload = function() {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 3); // Set startDate to 3 months back
+
+        // Assign the formatted date to input fields
+        document.getElementById('startDate').value = formatDateToLocalInput(startDate);
+        document.getElementById('endDate').value = formatDateToLocalInput(endDate);
+    };
+
+    
+    document.getElementById('downloadForm').onsubmit = function(event) {
+        event.preventDefault();
+        const startDate = new Date(document.getElementById('startDate').value).toISOString();
+        const endDate = new Date(document.getElementById('endDate').value).toISOString();
+        const courierPartner = document.getElementById('courierPartner').value; // Get the selected value
+
+        // Validate dates
+        if (startDate > endDate) {
+            alert("Start date must be before end date.");
+            return;
+        }
+
+        // Define download location if needed (or set to default)
+        const downloadLocation = "c"; // This should be the location if required by the API
+
+        const apiUrl = `http://127.0.0.1:5002/v1/data/download?courier_partner=${courierPartner}&download_location=${downloadLocation}&start_date=${startDate}&end_date=${endDate}`;
+
+        // Fetch the CSV data
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.blob(); // Get the response as a Blob
+            })
+            .then(blob => {
+                // Create a link to download the Blob
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${courierPartner}_${startDate.slice(0,10)}_${endDate.slice(0,10)}.csv`; // Specify the file name
+                document.body.appendChild(a);
+                a.click(); // Programmatically click the link to trigger the download
+                window.URL.revokeObjectURL(url); // Clean up the URL.createObjectURL
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation:', error);
+                alert('Failed to download the CSV file.');
+            });
+    };
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTO</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        form {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: block;
+            color: #555;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        input[type="checkbox"] {
+            margin-bottom: 20px; /* Space below the checkbox */
+        }
+
+        button {
+            width: 100%;
+            background-color: red; /* Changed background to red */
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold; /* Added bold font for emphasis */
+        }
+
+        button:hover {
+            background-color: darkred; /* Darker shade on hover */
+        }
+
+        /* Centering form */
+        #deleteForm {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Style for form inputs */
+        #deleteForm input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        /* Table container centering */
+        #tableContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #headline {
+            margin-left: 20px; /* Adjust the value as needed */
+        }
+    </style>
+</head>
+<body>
+
+<h2 id="headline">Delete Data</h2>
+
+<button type="button" 
+        id="backButton" 
+        style="position: absolute; top: 10px; right: 10px; background-color: red; color: white; padding: 5px 10px; width: auto; min-width: 100px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer;"
+        onclick="window.location.href='index.html';">Back</button>
+
+<div id="tableContainer">
+    <form id="deleteForm">
+        <label for="courierPartner">Courier Partner:</label>
+        <select id="courierPartner" name="courier_partner" required>
+            <option value="Shiprocket">Shiprocket</option>
+            <option value="DTDC">DTDC</option>
+            <option value="Delhivery">Delhivery</option>
+        </select><br>
+
+        <label for="order_id">Order ID (Optional):</label>
+        <input type="text" id="order_id" name="order_id"><br>
+
+        <label for="full_data">Full Data (Optional):</label>
+        <input type="checkbox" id="full_data" name="full_data">
+        <label for="full_data" style="display: inline-block; margin-left: 5px;">Include Full Data</label> <!-- Label for checkbox -->
+
+        <button type="submit">Delete</button> <!-- Changed button label to "Delete" -->
+    </form>
+</div>
+
+<script>
+    document.getElementById('deleteForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        // Collect form data
+        const courierPartner = document.getElementById('courierPartner').value;
+        const orderId = document.getElementById('order_id').value || null; // Order ID from the input
+        const fullData = document.getElementById('full_data').checked; // Checkbox state
+
+        // Ensure courier_partner is not empty
+        if (!courierPartner) {
+            alert("Courier Partner is required");
+            return;
+        }
+
+        // Prepare request options
+        const requestOptions = {
+            method: 'DELETE', // Use DELETE method
+            headers: {
+                'Content-Type': 'application/json' // Set the content type
+            },
+            body: JSON.stringify({
+                order_id: orderId, // Add order_id to the body
+                full_data: fullData // Add full_data to the body
+            })
+        };
+
+        // Construct the URL with query parameters
+        const url = new URL(`http://127.0.0.1:5002/v1/data/delete`);
+        url.searchParams.append('courier_partner', courierPartner);
+
+        // Add order_id to the URL if provided
+        if (orderId) {
+            url.searchParams.append('order_id', orderId);
+        }
+
+        // Add full_data to the URL if the checkbox is checked
+        url.searchParams.append('full_data', fullData);
+        
+        // Make the DELETE request
+        fetch(url, requestOptions)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        // Extract the error message from the response
+                        alert(`Error: ${err.message}`);
+                        throw new Error('API response error'); // Ensure we throw to trigger the catch block
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Optionally handle the success response
+                alert('Data deleted successfully!');
+                // You can call a function to refresh the data table or handle UI updates here
+            })
+            .catch(error => {
+                alert('Error fetching data: ' + error.message);
+            });
+    });
+
+    document.getElementById('backButton').addEventListener('click', function() {
+        window.location.href = 'index.html';
+    });
+</script>
+
+</body>
+</html>

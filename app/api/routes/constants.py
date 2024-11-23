@@ -1,0 +1,11 @@
+class Routes:
+    DASHBOARD = "fetch dashboard:get"
+    TRACKER = "fetch tracker:post"
+    PINCODE_SKU = "fetch pincode sku:get"
+    RTO_DATA = "fetch rto data:get"
+    PAYMENT_DATA = "fetch payment data:get"
+    CHECK_DEPENDENCIES = "check dependencies:get"
+    DATA_GET = "get data:get"
+    DATA_PUT = "put data:post"
+    DATA_DELETE = "delete data:delete"
+    DOWNLOAD_DELETE = "download data:post"

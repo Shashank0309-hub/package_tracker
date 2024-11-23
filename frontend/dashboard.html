@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            flex: 1 1 300px;
+            min-width: 250px;
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 600px;
+            margin-top: 20px;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Dashboard</h1>
+        <div id="dashboard" class="dashboard"></div>
+        <div id="error-message" class="error"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dashboardContainer = document.getElementById('dashboard');
+            const errorMessage = document.getElementById('error-message');
+
+            async function fetchDashboardData() {
+                try {
+                    const response = await fetch('http://127.0.0.1:5002/v1/dashboard/get');
+                    const data = await response.json();
+
+                    // Log the entire response for debugging
+                    console.log('API Response:', data);
+
+                    if (data.status === 200) {
+                        renderDashboard(data.data);
+                    } else {
+                        errorMessage.textContent = 'Error fetching data: ' + data.message;
+                        console.error('Error fetching data:', data.message);
+                    }
+                } catch (error) {
+                    errorMessage.textContent = 'Network error: ' + error.message;
+                    console.error('Network error:', error);
+                }
+            }
+
+            function renderDashboard(data) {
+                if (!data || Object.keys(data).length === 0) {
+                    errorMessage.textContent = 'No data available';
+                    return;
+                }
+
+                for (const courier in data) {
+                    if (data.hasOwnProperty(courier)) {
+                        const courierData = data[courier];
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        
+                        // Card Header
+                        const header = document.createElement('h3');
+                        header.textContent = courier;
+                        card.appendChild(header);
+                        
+                        // Display number of orders
+                        const orderCount = document.createElement('p');
+                        orderCount.textContent = `Number of Orders: ${courierData.no_of_orders}`;
+                        card.appendChild(orderCount);
+
+                        // Display number of rto
+                        const rtoCount = document.createElement('p');
+                        rtoCount.textContent = `RTO: ${courierData.rto}`;
+                        card.appendChild(rtoCount);
+
+                        // Display number of payment_received
+                        const paymentCount = document.createElement('p');
+                        paymentCount.textContent = `Payment Received: ${courierData.payment_received}`;
+                        card.appendChild(paymentCount);
+                        
+                        // Create Chart
+                        const chartContainer = document.createElement('div');
+                        chartContainer.className = 'chart-container';
+                        const canvas = document.createElement('canvas');
+                        chartContainer.appendChild(canvas);
+                        card.appendChild(chartContainer);
+                        
+                        // Prepare data for chart
+                        const labels = Object.keys(courierData.status_value_counts);
+                        const counts = Object.values(courierData.status_value_counts);
+                        
+                        // Render Chart.js chart
+                        const ctx = canvas.getContext('2d');
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Status Counts',
+                                    data: counts,
+                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false  // Hides the legend to free space
+                                    },
+                                    tooltip: {
+                                        enabled: true  // Tooltip display configuration
+                                    }
+                                },
+                                indexAxis: 'y',  // Horizontal bar orientation
+                                scales: {
+                                    x: {
+                                        beginAtZero: true,
+                                    },
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            autoSkip: false,
+                                            font: {
+                                                size: 10  // Adjust font size for visibility
+                                            },
+                                            padding: 5  // Reduce padding if needed
+                                        }
+                                    }
+                                }
+                            }
+
+
+                        });
+                        
+                        // Append the card to the dashboard container
+                        dashboardContainer.appendChild(card);
+                    }
+                }
+            }
+
+
+            fetchDashboardData();
+        });
+    </script>
+</body>
+<button type="button" 
+        id="backButton" 
+        style="position: absolute; top: 10px; right: 10px; background-color: red; color: white; padding: 5px 10px; width: auto; min-width: 100px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer;"
+        onclick="window.location.href='index.html';">Back</button>
+</html>

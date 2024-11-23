@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pincode SKU</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        form {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: block;
+            color: #555;
+        }
+
+        input[type="number"],
+        select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Centering form */
+        #pincodeSKUForm {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Style for form inputs */
+        #pincodeSKUForm input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        /* Table container centering */
+        #tableContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #pincodeSKUTable {
+        margin: 20px auto; /* Centers the table */
+        width: 80%; /* Adjust the width as per your design */
+        border-collapse: collapse;
+        text-align: center;
+        }
+
+        /* Styling the table headers */
+        #pincodeSKUTable thead tr {
+            background-color: #4CAF50; /* Header background color similar to the index page */
+            color: white; /* White text for the headers */
+        }
+
+        /* Styling the table rows */
+        #pincodeSKUTable tbody tr {
+            background-color: #f2f2f2; /* Row background color */
+            color: #333; /* Text color */
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Adding hover effect to rows */
+        #pincodeSKUTable tbody tr:hover {
+            background-color: #ddd; /* Light grey background on hover */
+        }
+
+        /* Adding padding to table cells */
+        #pincodeSKUTable th, #pincodeSKUTable td {
+            padding: 12px;
+            border: 1px solid #ddd; /* Table border */
+        }
+
+        #headline {
+            margin-left: 20px; /* Adjust the value as needed */
+        }
+    </style>
+</head>
+<body>
+
+<h2 id="headline">Pincode SKU</h2>
+
+<button type="button" 
+        id="backButton" 
+        style="position: absolute; top: 10px; right: 10px; background-color: red; color: white; padding: 5px 10px; width: auto; min-width: 100px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer;"
+        onclick="window.location.href='index.html';">Back</button>
+
+<div id="tableContainer">
+    <form id="pincodeSKUForm">
+        <label for="courierPartner">Courier Partner:</label>
+        <select id="courierPartner" name="courier_partner" required>
+            <option value="Shiprocket">Shiprocket</option>
+            <option value="DTDC">DTDC</option>
+            <option value="Delhivery">Delhivery</option>
+        </select><br>
+
+        <label for="pincode">Pincode (optional):</label>
+        <input type="number" id="pincode" name="pincode"><br>
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <table border="1" id="pincodeSKUTable">
+        <thead>
+            <tr>
+                <th>Pincode</th>
+                <th>Number of Orders</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- Data will be inserted here dynamically -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.getElementById('pincodeSKUForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        // Collect form data
+        const courierPartner = document.getElementById('courierPartner').value;
+        const pincode = document.getElementById('pincode').value || '';
+
+        // Ensure courier_partner is not empty
+        if (!courierPartner) {
+            alert("Courier Partner is required");
+            return;
+        }
+
+        // Prepare query parameters for GET request
+        let queryParams = `courier_partner=${courierPartner}`;
+        if (pincode) {
+            queryParams += `&pincode=${pincode}`;
+        }
+
+        // Make the GET request
+        fetch(`http://127.0.0.1:5002/v1/tracker/pincode_sku?${queryParams}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('API response error');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Call function to display data in table format
+                displayTable(data.data);
+            })
+            .catch(error => {
+                alert('Error fetching data: ' + error.message);
+            });
+    });
+
+    document.getElementById('backButton').addEventListener('click', function() {
+        window.location.href = 'index.html';
+    });
+
+
+    // Function to display the data in a table
+    function displayTable(data) {
+        // Get the reference of the table body where we want to insert the rows
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = ''; // Clear previous data
+
+        // Create table rows for each entry in the data
+        data.forEach(item => {
+            const row = document.createElement('tr');
+
+            // Create and append cells for pincode, num_of_orders, and courier_partner
+            const pincodeCell = document.createElement('td');
+            pincodeCell.textContent = item.pincode;
+            row.appendChild(pincodeCell);
+
+            const numOrdersCell = document.createElement('td');
+            numOrdersCell.textContent = item.num_of_orders;
+            row.appendChild(numOrdersCell);
+
+            // Append the row to the table body
+            tableBody.appendChild(row);
+        });
+    }
+
+
+
+</script>
+
+</body>
+</html>
