@@ -13,6 +13,11 @@ from app.schemas.data import TableNames, DatabaseName
 
 from app.schemas.tracker import CourierPartnerName
 
+order_date_col = {
+    CourierPartnerName.SHIPROCKET: "shiprocket_created_at",
+    CourierPartnerName.DTDC: "created_at"
+}
+
 
 class DataService:
     def __init__(self):
@@ -200,14 +205,34 @@ class DataService:
 
         return "Deleted Successfully!"
 
-    async def get_data_service(self, courier_partner, file_name: str = "data.csv"):
+    async def get_data_service(
+            self,
+            courier_partner,
+            status,
+            page,
+            limit,
+            start_date,
+            end_date,
+    ):
         table_name = TableNames.get(courier_partner)
 
         if not table_name:
             raise HTTPException(status_code=400, detail="Invalid courier partner")
 
         self.cursor.execute(f"USE {DatabaseName};")
-        query = f"SELECT * FROM {table_name};"
+
+        conditions = [
+            f"""
+            {order_date_col[courier_partner]} >= "{start_date}" 
+            AND {order_date_col[courier_partner]} <= "{end_date}"
+            """
+        ]
+        if status:
+            conditions.append(f"""status = "{status}" """)
+
+        condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+        query = f"SELECT * FROM {table_name} {condition} ORDER BY updated_at LIMIT {limit} OFFSET {page * limit};"
 
         try:
             self.cursor.execute(query)
@@ -217,8 +242,8 @@ class DataService:
 
             df = pd.DataFrame(rows, columns=column_names)
 
-            df.to_csv(file_name, index=False)
-            return f"Data saved to {file_name} successfully!"
+            data = df.to_dict(orient="records")
+            return data, len(data)
         except mysql.connector.Error as err:
             raise HTTPException(status_code=500, detail=f"Database error: {err}")
 
@@ -278,4 +303,3 @@ class DataService:
             return df, file_name
         except mysql.connector.Error as err:
             raise HTTPException(status_code=500, detail=f"Database error: {err}")
-

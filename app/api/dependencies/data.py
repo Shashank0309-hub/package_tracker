@@ -2,23 +2,13 @@ import io
 from datetime import date, datetime, timedelta
 from typing import Optional, Union
 
-from fastapi import UploadFile, File
+from fastapi import UploadFile
 from starlette.responses import StreamingResponse
 
-from app.schemas import GlobalResponse
+from app.schemas import GlobalResponse, PaginatedResponse, Pagination
 
 from app.schemas.tracker import CourierPartnerName
 from app.services.data import DataService
-
-
-async def get_data_dep(
-        courier_partner: CourierPartnerName,
-):
-    response = await DataService().get_data_service(courier_partner)
-
-    return GlobalResponse(
-        data=response
-    )
 
 
 async def put_data_dep(
@@ -87,6 +77,30 @@ async def download_data_dep(
     return StreamingResponse(iter([csv_buffer.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": f"attachment; filename={file_name}"})
 
-    # return GlobalResponse(
-    #     data=response
-    # )
+
+async def get_data_dep(
+        courier_partner: CourierPartnerName,
+        status: Optional[str] = None,
+        page: int = 0,
+        limit: int = 25,
+        start_date: Optional[Union[datetime, date]] = datetime.now() - timedelta(days=90),
+        end_date: Optional[Union[datetime, date]] = datetime.now(),
+):
+    response, total = await DataService().get_data_service(
+        courier_partner=courier_partner,
+        status=status,
+        page=page,
+        limit=limit,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return PaginatedResponse(
+        data=response,
+        message="Successfully Fetched!",
+        meta=Pagination(
+            page=page,
+            limit=limit,
+            total=total,
+        )
+    )

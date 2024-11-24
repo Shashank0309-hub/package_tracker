@@ -11,4 +11,5 @@ class Routes:
     DATA_GET = "get data:get"
     DATA_PUT = "put data:post"
     DATA_DELETE = "delete data:delete"
-    DOWNLOAD_DELETE = "download data:post"
+    DOWNLOAD_DATA = "download data:get"
+    GET_DATA = "download data:get"
