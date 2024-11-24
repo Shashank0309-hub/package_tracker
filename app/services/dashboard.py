@@ -1,8 +1,11 @@
+import re
+from datetime import date, datetime
 from typing import Optional
 
 import mysql.connector
 import pandas as pd
 from fastapi import HTTPException
+from loguru import logger
 
 from app.db.query_builder import SqlQueries
 from app.db.sql import mysql_connector
@@ -11,9 +14,14 @@ from app.schemas.data import DatabaseName, TableNames
 from app.schemas.tracker import CourierPartnerName
 from app.services.tracker import TrackerService
 
-order_col = {
+amount_col = {
     CourierPartnerName.SHIPROCKET: "order_total",
     CourierPartnerName.DTDC: "amount_to_be_paid"
+}
+
+order_date_col = {
+    CourierPartnerName.SHIPROCKET: "shiprocket_created_at",
+    CourierPartnerName.DTDC: "created_at"
 }
 
 
@@ -21,6 +29,25 @@ class DashboardService:
     def __init__(self):
         self.connector = mysql_connector.connection
         self.cursor = self.connector.cursor()
+
+    async def parse_date(self, date_str: str) -> date:
+        normalized_date_str = re.sub(r'[-/.]', '-', date_str)
+
+        try:
+            if len(normalized_date_str.split('-')[0]) == 4:
+                return datetime.strptime(normalized_date_str, "%Y-%m-%d %H:%M:%S").date()
+
+            if len(normalized_date_str.split('-')[2]) == 4:
+                return datetime.strptime(normalized_date_str, "%d-%m-%Y").date()
+            elif " " in normalized_date_str:
+                try:
+                    return datetime.strptime(normalized_date_str, "%d-%m-%y %H:%M")
+                except:
+                    return datetime.strptime(normalized_date_str, "%d-%m-%Y %H:%M")
+            else:
+                return datetime.strptime(normalized_date_str, "%d-%m-%y").date()
+        except ValueError:
+            raise ValueError(f"Date format not recognized: {date_str}")
 
     async def _fetch_data(self, query):
         self.cursor.execute(query)
@@ -72,7 +99,7 @@ class DashboardService:
             no_of_orders = len(df)
             status_counts = df["status"].value_counts()
             status_percentages = (status_counts / no_of_orders * 100).round(2)
-            status_order_totals = df.groupby("status")[order_col[courier_partner]].sum()
+            status_order_totals = df.groupby("status")[amount_col[courier_partner]].sum()
 
             # Create status summaries
             status_summary = [
@@ -93,9 +120,9 @@ class DashboardService:
             remaining_payment_df = df[df["payment_received"] == "NO"]
 
             total_payment_received = payment_received_df[
-                order_col[courier_partner]].sum() if courier_partner in order_col else 0
+                amount_col[courier_partner]].sum() if courier_partner in amount_col else 0
             pending_payment = remaining_payment_df[
-                order_col[courier_partner]].sum() if courier_partner in order_col else 0
+                amount_col[courier_partner]].sum() if courier_partner in amount_col else 0
 
             # Additional data handling
             try:
@@ -192,3 +219,45 @@ class DashboardService:
         data = df.to_dict(orient="records")
 
         return data
+
+    async def get_date_wise_data_service(
+            self,
+            start_date,
+            end_date,
+            selected_courier_partner: Optional[CourierPartnerName] = None,
+    ):
+        try:
+            dfs = pd.DataFrame()
+            self.cursor.execute(f"USE {DatabaseName};")
+            date_col = f"last {(end_date - start_date).days} days"
+
+            for courier_partner, table_name in TableNames.items():
+                if selected_courier_partner == courier_partner:
+                    query = f"""
+                    SELECT * FROM {table_name} 
+                    WHERE {order_date_col[courier_partner]} >= "{start_date}" 
+                    AND {order_date_col[courier_partner]} <= "{end_date}"
+                    """
+
+                    rows = await self._fetch_data(query=query)
+                    df = pd.DataFrame(rows, columns=[i[0] for i in self.cursor.description])
+
+                    df = df[[order_date_col[courier_partner], amount_col[courier_partner]]]
+                    df.rename(
+                        columns={
+                            order_date_col[courier_partner]: date_col,
+                            amount_col[courier_partner]: "amount"
+                        },
+                        inplace=True
+                    )
+                    df[date_col] = [await self.parse_date(x) for x in df[date_col]]
+                    df = df.groupby(date_col)["amount"].sum().reset_index()
+
+                    dfs = pd.concat([dfs, df], ignore_index=True)
+
+            data = dfs.to_dict(orient="records")
+            return data
+
+        except Exception as e:
+            logger.error(e)
+            return {}

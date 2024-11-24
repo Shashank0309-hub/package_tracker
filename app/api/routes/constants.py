@@ -2,6 +2,7 @@ class Routes:
     DASHBOARD = "fetch dashboard:get"
     ADDITIONAL_COST = "put additional cost:post"
     FETCH_ADDITIONAL_COST = "get additional cost:get"
+    FETCH_DATE_WISE_DATA = "get data wise data:get"
     TRACKER = "fetch tracker:post"
     PINCODE_SKU = "fetch pincode sku:get"
     RTO_DATA = "fetch rto data:get"
