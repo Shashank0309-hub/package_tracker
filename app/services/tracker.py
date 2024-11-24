@@ -166,7 +166,10 @@ class TrackerService:
             if len(normalized_date_str.split('-')[2]) == 4:
                 return datetime.strptime(normalized_date_str, "%d-%m-%Y").date()
             elif " " in normalized_date_str:
-                return datetime.strptime(normalized_date_str, "%d-%m-%y %H:%M")
+                try:
+                    return datetime.strptime(normalized_date_str, "%d-%m-%y %H:%M")
+                except:
+                    return datetime.strptime(normalized_date_str, "%d-%m-%Y %H:%M")
             else:
                 return datetime.strptime(normalized_date_str, "%d-%m-%y").date()
         except ValueError:
@@ -288,19 +291,19 @@ class TrackerService:
     async def _get_values_for_courier(self, courier_partner, row, current_time):
         if courier_partner == CourierPartnerName.SHIPROCKET:
             return (
-                row.get('Order ID'), str(row.get('Shiprocket Created At')), row.get('Status'),
+                row.get('Order ID'), await self.parse_date(row.get('Shiprocket Created At')), row.get('Status'),
                 row.get('Product Name'),
                 row.get('Product Quantity'), row.get('Customer Name'), row.get('Customer Address'),
                 row.get('Address Pincode'), row.get('Payment Method'), row.get('Order Total'),
                 row.get('Courier Company'),
-                str(row.get('Order Delivered Date')) if pd.notna(
+                await self.parse_date(row.get('Order Delivered Date')) if pd.notna(
                     row.get('Order Delivered Date')) else None,
                 row.get('RTO Initiated Date'), row.get('Payment Received'),
                 current_time
             )
         elif courier_partner == CourierPartnerName.DTDC:
             return (
-                row.get('CN #'), row.get('Status'), str(row.get('Created At')),
+                row.get('CN #'), row.get('Status'), await self.parse_date(row.get('Created At')),
                 row.get('Amount to be Paid'),
                 row.get('Number Of pieces'), row.get('Receiver Name'), row.get('Expected Delivery Date'),
                 row.get('Revised Expected Delivery Date'), row.get('Customer Address'), row.get('Destination Pincode'),
