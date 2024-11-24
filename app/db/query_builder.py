@@ -5,6 +5,14 @@ class SqlQueries:
         courier_partner VARCHAR(255)
         """
 
+    ADDITIONAL_DATA_COLS = """
+        name VARCHAR(255),
+        cost_per_order DECIMAL(10, 3) NULL,
+        operator VARCHAR(255),
+        courier_partner VARCHAR(255) NULL,
+        total_cost DECIMAL(10, 3) NULL
+        """
+
     # TRACKER_DATA_COLS = """
     # order_id VARCHAR(255),
     # consignment_id VARCHAR(255),
@@ -186,4 +194,27 @@ class SqlQueries:
         SET 
             num_of_orders = %s
         WHERE pincode = %s and courier_partner = %s
+        """
+
+    async def get_additional_data_query(self, table_name):
+        return f"""
+        INSERT INTO {table_name} (
+        name,
+        cost_per_order,
+        operator,
+        courier_partner,
+        total_cost
+        )
+        VALUES (%s, %s, %s, %s, %s)
+        """
+
+
+    async def update_additional_data_query(self, table_name):
+        return f"""
+        UPDATE {table_name} 
+        SET 
+            cost_per_order = %s,
+            operator = %s,
+            total_cost = %s
+        WHERE name = %s and courier_partner = %s
         """
