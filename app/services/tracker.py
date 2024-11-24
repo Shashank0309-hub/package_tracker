@@ -265,7 +265,7 @@ class TrackerService:
             col_list = ["Order ID", "Shiprocket Created At", "Status", "Product Name", "Product Quantity",
                         "Customer Name", "Address Line 1", "Address Line 2", "Address City", "Address State",
                         "Address Pincode", "Payment Method", "Order Total", "Courier Company", "Order Delivered Date",
-                        "RTO Initiated Date", "Payment Received"]
+                        "RTO Initiated Date"]
             address_cols = ['Address Line 1', 'Address Line 2', 'Address City', 'Address State']
         elif courier_partner == CourierPartnerName.DTDC:
             col_list = ["CN #", "Status", "Created At", "Amount to be Paid", "Number Of pieces", "Receiver Name",
@@ -298,7 +298,7 @@ class TrackerService:
                 row.get('Courier Company'),
                 await self.parse_date(row.get('Order Delivered Date')) if pd.notna(
                     row.get('Order Delivered Date')) else None,
-                row.get('RTO Initiated Date'), row.get('Payment Received'),
+                row.get('RTO Initiated Date'),
                 current_time
             )
         elif courier_partner == CourierPartnerName.DTDC:
@@ -377,15 +377,26 @@ class TrackerService:
     async def get_payment_data_service(
             self,
             courier_partner,
+            upload_file,
             payment_received=None,
             page_limit=True,
             cod=None,
             page=0,
-            limit=25
+            limit=25,
+            order_id=None
     ):
-        self.cursor.execute(f"USE {DatabaseName};")
+        file_path = await save_upload_file_tmp(upload_file)
+        df = pd.read_csv(file_path)
 
+        self.cursor.execute(f"USE {DatabaseName};")
         table_name = TableNames.get(courier_partner)
+
+        if courier_partner == CourierPartnerName.SHIPROCKET:
+            query = await SqlQueries().get_shiprocket_update_payment_data(table_name)
+
+        for _, row in df.iterrows():
+            update_values = (row.get('remittance_status'), datetime.now(), row.get('ChannelOrderID'))
+            await self._execute_update(query, update_values)
 
         conditions = []
         if payment_received:
@@ -409,6 +420,9 @@ class TrackerService:
             elif courier_partner == CourierPartnerName.SHIPROCKET:
                 condition = 'payment_method <> "cod"'
                 conditions.append(condition)
+
+        if order_id:
+            conditions.append(f'order_id = "{order_id}"')
 
         condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 

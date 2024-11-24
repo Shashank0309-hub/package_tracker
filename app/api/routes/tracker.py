@@ -30,6 +30,6 @@ async def fetch_rto(tracker_response: GlobalResponse = Depends(get_rto_data_dep)
     return tracker_response
 
 
-@router.get("/payment", name=Routes.PAYMENT_DATA, status_code=HTTP_200_OK)
+@router.post("/payment", name=Routes.PAYMENT_DATA, status_code=HTTP_200_OK)
 async def fetch_payment(tracker_response: GlobalResponse = Depends(get_payment_data_dep)):
     return tracker_response

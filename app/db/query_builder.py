@@ -5,19 +5,19 @@ class SqlQueries:
         courier_partner VARCHAR(255)
         """
 
-    TRACKER_DATA_COLS = """
-    order_id VARCHAR(255),
-    consignment_id VARCHAR(255),
-    product_name VARCHAR(255),
-    courier_partner VARCHAR(255),
-    customer_number INT,
-    customer_address TEXT,
-    customer_pincode INT,
-    product_price DECIMAL(10, 2),
-    date DATE,
-    status VARCHAR(255),
-    updated_at DATETIME
-    """
+    # TRACKER_DATA_COLS = """
+    # order_id VARCHAR(255),
+    # consignment_id VARCHAR(255),
+    # product_name VARCHAR(255),
+    # courier_partner VARCHAR(255),
+    # customer_number INT,
+    # customer_address TEXT,
+    # customer_pincode INT,
+    # product_price DECIMAL(10, 2),
+    # date DATE,
+    # status VARCHAR(255),
+    # updated_at DATETIME
+    # """
 
     SHIPROCKET_DATA_COLS = """
         order_id VARCHAR(255),
@@ -33,7 +33,7 @@ class SqlQueries:
         courier_company VARCHAR(255),
         order_delivery_date VARCHAR(255),
         rto_initiated_date VARCHAR(255),
-        payment_received VARCHAR(255),
+        payment_received ENUM('YES', 'NO') DEFAULT 'NO',
         updated_at DATETIME
         """
 
@@ -54,13 +54,13 @@ class SqlQueries:
             updated_at DATETIME
             """
 
-    async def get_insert_tracker_data(self, table_name):
-        return f"""
-        INSERT INTO {table_name} (order_id, consignment_id, product_name, courier_partner,
-                                   customer_number, customer_address, customer_pincode,
-                                   product_price, date, status, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
+    # async def get_insert_tracker_data(self, table_name):
+    #     return f"""
+    #     INSERT INTO {table_name} (order_id, consignment_id, product_name, courier_partner,
+    #                                customer_number, customer_address, customer_pincode,
+    #                                product_price, date, status, updated_at)
+    #     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    #     """
 
     async def get_dtdc_insert_tracker_data(self, table_name):
         return f"""
@@ -99,28 +99,27 @@ class SqlQueries:
         courier_company,
         order_delivery_date,
         rto_initiated_date,
-        payment_received,
         updated_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
-    async def get_update_tracker_data(self, table_name):
-        return f"""
-        UPDATE {table_name} 
-        SET 
-            consignment_id = %s,
-            product_name = %s,
-            courier_partner = %s,
-            customer_number = %s,
-            customer_address = %s,
-            customer_pincode = %s,
-            product_price = %s,
-            date = %s,
-            status = %s,
-            updated_at = %s 
-        WHERE order_id = %s
-        """
+    # async def get_update_tracker_data(self, table_name):
+    #     return f"""
+    #     UPDATE {table_name}
+    #     SET
+    #         consignment_id = %s,
+    #         product_name = %s,
+    #         courier_partner = %s,
+    #         customer_number = %s,
+    #         customer_address = %s,
+    #         customer_pincode = %s,
+    #         product_price = %s,
+    #         date = %s,
+    #         status = %s,
+    #         updated_at = %s
+    #     WHERE order_id = %s
+    #     """
 
     async def get_shiprocket_update_tracker_data(self, table_name):
         return f"""
@@ -138,6 +137,14 @@ class SqlQueries:
             courier_company = %s,
             order_delivery_date = %s,
             rto_initiated_date = %s,
+            updated_at = %s
+        WHERE order_id = %s
+        """
+
+    async def get_shiprocket_update_payment_data(self, table_name):
+        return f"""
+        UPDATE {table_name} 
+        SET 
             payment_received = %s,
             updated_at = %s
         WHERE order_id = %s

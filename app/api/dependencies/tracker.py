@@ -90,6 +90,8 @@ async def get_payment_data_dep(
         page_limit: bool = True,
         page: int = 0,
         limit: int = 25,
+        order_id: Optional[str] = None,
+        upload_file: UploadFile = File(...),
 ):
     response = await TrackerService().get_payment_data_service(
         courier_partner=courier_partner,
@@ -98,6 +100,8 @@ async def get_payment_data_dep(
         page_limit=page_limit,
         page=page,
         limit=limit,
+        order_id=order_id,
+        upload_file=upload_file,
     )
 
     return GlobalResponse(
