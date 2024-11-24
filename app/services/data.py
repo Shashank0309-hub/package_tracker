@@ -4,6 +4,7 @@ from typing import Optional, Dict
 import pandas as pd
 import mysql.connector
 from fastapi import HTTPException, UploadFile, File
+from loguru import logger
 
 from app.core.config import DAYS_FOR_DELETION
 from app.core.utils import save_upload_file_tmp
@@ -12,6 +13,11 @@ from app.db.sql import mysql_connector
 from app.schemas.data import TableNames, DatabaseName
 
 from app.schemas.tracker import CourierPartnerName
+
+order_date_col = {
+    CourierPartnerName.SHIPROCKET: "shiprocket_created_at",
+    CourierPartnerName.DTDC: "created_at"
+}
 
 
 class DataService:
@@ -200,16 +206,39 @@ class DataService:
 
         return "Deleted Successfully!"
 
-    async def get_data_service(self, courier_partner, file_name: str = "data.csv"):
+    async def get_data_service(
+            self,
+            courier_partner,
+            order_id,
+            status,
+            page,
+            limit,
+            start_date,
+            end_date,
+    ):
         table_name = TableNames.get(courier_partner)
 
         if not table_name:
             raise HTTPException(status_code=400, detail="Invalid courier partner")
 
         self.cursor.execute(f"USE {DatabaseName};")
-        query = f"SELECT * FROM {table_name};"
-
+        data = {}
         try:
+            conditions = [
+                f"""
+                {order_date_col[courier_partner]} >= "{start_date}" 
+                AND {order_date_col[courier_partner]} <= "{end_date}"
+                """
+            ]
+            if status:
+                conditions.append(f"""status = "{status}" """)
+
+            if order_id:
+                conditions.append(f"""order_id = "{order_id}" """)
+
+            condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+            query = f"SELECT * FROM {table_name} {condition} ORDER BY updated_at LIMIT {limit} OFFSET {page * limit};"
             self.cursor.execute(query)
             rows = self.cursor.fetchall()
 
@@ -217,10 +246,11 @@ class DataService:
 
             df = pd.DataFrame(rows, columns=column_names)
 
-            df.to_csv(file_name, index=False)
-            return f"Data saved to {file_name} successfully!"
-        except mysql.connector.Error as err:
-            raise HTTPException(status_code=500, detail=f"Database error: {err}")
+            data = df.to_dict(orient="records")
+            return data, len(data)
+        except Exception as err:
+            logger.error(err)
+            return data, len(data)
 
     async def delete_old_delivered_records(self):
         self.cursor.execute(f"USE {DatabaseName};")
@@ -274,8 +304,6 @@ class DataService:
 
             df = pd.DataFrame(rows, columns=column_names)
 
-            # df.to_csv(file_name, index=False)
             return df, file_name
         except mysql.connector.Error as err:
             raise HTTPException(status_code=500, detail=f"Database error: {err}")
-
