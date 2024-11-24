@@ -242,32 +242,34 @@ class DashboardService:
             date_col = f"last {(end_date - start_date).days} days"
 
             for courier_partner, table_name in TableNames.items():
-                if selected_courier_partner == courier_partner:
-                    try:
-                        query = f"""
-                        SELECT * FROM {table_name} 
-                        WHERE {order_date_col[courier_partner]} >= "{start_date}" 
-                        AND {order_date_col[courier_partner]} <= "{end_date}"
-                        """
+                if selected_courier_partner and selected_courier_partner != courier_partner:
+                    continue
 
-                        rows = await self._fetch_data(query=query)
-                    except:
-                        continue
+                try:
+                    query = f"""
+                    SELECT * FROM {table_name} 
+                    WHERE {order_date_col[courier_partner]} >= "{start_date}" 
+                    AND {order_date_col[courier_partner]} <= "{end_date}"
+                    """
 
-                    df = pd.DataFrame(rows, columns=[i[0] for i in self.cursor.description])
+                    rows = await self._fetch_data(query=query)
+                except:
+                    continue
 
-                    df = df[[order_date_col[courier_partner], amount_col[courier_partner]]]
-                    df.rename(
-                        columns={
-                            order_date_col[courier_partner]: date_col,
-                            amount_col[courier_partner]: "amount"
-                        },
-                        inplace=True
-                    )
-                    df[date_col] = [await self.parse_date(x) for x in df[date_col]]
-                    df = df.groupby(date_col)["amount"].sum().reset_index()
+                df = pd.DataFrame(rows, columns=[i[0] for i in self.cursor.description])
 
-                    dfs = pd.concat([dfs, df], ignore_index=True)
+                df = df[[order_date_col[courier_partner], amount_col[courier_partner]]]
+                df.rename(
+                    columns={
+                        order_date_col[courier_partner]: date_col,
+                        amount_col[courier_partner]: "amount"
+                    },
+                    inplace=True
+                )
+                df[date_col] = [await self.parse_date(x) for x in df[date_col]]
+                dfs = pd.concat([dfs, df], ignore_index=True)
+
+            dfs = dfs.groupby(date_col)["amount"].sum().reset_index()
 
             data = dfs.to_dict(orient="records")
             return data
