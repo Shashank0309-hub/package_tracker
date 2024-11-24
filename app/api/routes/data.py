@@ -18,7 +18,7 @@ router = APIRouter(prefix="/v1/data")
 #     return tracker_response
 
 @router.get("/download", name=Routes.DATA_DELETE, status_code=HTTP_200_OK)
-async def delete_data(tracker_response: GlobalResponse = Depends(download_data_dep)):
+async def download_data(tracker_response: GlobalResponse = Depends(download_data_dep)):
     return tracker_response
 
 
