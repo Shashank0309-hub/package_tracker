@@ -73,7 +73,12 @@ class DashboardService:
         if AdditionalDataTable not in tables:
             self.cursor.execute(f"CREATE TABLE {AdditionalDataTable} ({SqlQueries().ADDITIONAL_DATA_COLS});")
 
-    async def get_dashboard_data_service(self, selected_courier_partner: Optional[CourierPartnerName] = None):
+    async def get_dashboard_data_service(
+            self,
+            start_date,
+            end_date,
+            selected_courier_partner: Optional[CourierPartnerName] = None
+    ):
         self.cursor.execute(f"USE {DatabaseName};")
         datas = {}
 
@@ -89,8 +94,12 @@ class DashboardService:
             if selected_courier_partner and selected_courier_partner != courier_partner:
                 continue
 
-            query = f"SELECT * FROM {table};"
             try:
+                query = f"""
+                SELECT * FROM {table} 
+                WHERE {order_date_col[courier_partner]} >= "{start_date}" 
+                AND {order_date_col[courier_partner]} <= "{end_date}";
+                """
                 rows = await self._fetch_data(query)
                 df = pd.DataFrame(rows, columns=[col[0] for col in self.cursor.description])
             except:
@@ -136,7 +145,7 @@ class DashboardService:
                 "status_summary": status_summary,
                 "rto": {
                     "total": len(rto),
-                    "percent": round(len(rto) / no_of_orders * 100, 2)
+                    "percent": round(len(rto) / no_of_orders * 100, 2) if no_of_orders else 0
                 },
                 "num_of_payment_received": len(payment_received_df),
                 "total_payment_received": total_payment_received,
@@ -164,6 +173,7 @@ class DashboardService:
 
         # Final consolidated data
         final_data = {
+            "days": (end_date - start_date).days,
             "total_received_orders": total_received_orders,
             "total_payment_received": total_payment_received,
             "pending_payment": pending_payment,
@@ -233,13 +243,17 @@ class DashboardService:
 
             for courier_partner, table_name in TableNames.items():
                 if selected_courier_partner == courier_partner:
-                    query = f"""
-                    SELECT * FROM {table_name} 
-                    WHERE {order_date_col[courier_partner]} >= "{start_date}" 
-                    AND {order_date_col[courier_partner]} <= "{end_date}"
-                    """
+                    try:
+                        query = f"""
+                        SELECT * FROM {table_name} 
+                        WHERE {order_date_col[courier_partner]} >= "{start_date}" 
+                        AND {order_date_col[courier_partner]} <= "{end_date}"
+                        """
 
-                    rows = await self._fetch_data(query=query)
+                        rows = await self._fetch_data(query=query)
+                    except:
+                        continue
+
                     df = pd.DataFrame(rows, columns=[i[0] for i in self.cursor.description])
 
                     df = df[[order_date_col[courier_partner], amount_col[courier_partner]]]
