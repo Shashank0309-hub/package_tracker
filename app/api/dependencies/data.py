@@ -61,11 +61,13 @@ async def delete_data_dep(
 
 async def download_data_dep(
         courier_partner: CourierPartnerName,
+        status: Optional[str] = None,
         start_date: Optional[Union[datetime, date]] = datetime.now() - timedelta(days=90),
         end_date: Optional[Union[datetime, date]] = datetime.now(),
 ):
     df, file_name = await DataService().download_data_service(
         courier_partner=courier_partner,
+        status=status,
         start_date=start_date,
         end_date=end_date,
     )

@@ -276,6 +276,7 @@ class DataService:
     async def download_data_service(
             self,
             courier_partner,
+            status,
             start_date,
             end_date,
     ):
@@ -284,13 +285,16 @@ class DataService:
         self.cursor.execute(f"USE {DatabaseName};")
         query = f"SELECT * FROM {table_name}"
 
-        created_at_column = ""
-        if courier_partner == CourierPartnerName.SHIPROCKET:
-            created_at_column = "shiprocket_created_at"
-        elif courier_partner == CourierPartnerName.DTDC:
-            created_at_column = "created_at"
+        conditions = [f"""
+        {order_date_col[courier_partner]} >= "{start_date}" 
+        AND {order_date_col[courier_partner]} <= "{end_date}"
+        """]
 
-        condition = f'WHERE {created_at_column} >= "{start_date}" AND {created_at_column} <= "{end_date}"'
+        if status:
+            conditions.append(f"""status = "{status}" """)
+
+        condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
         query = f"{query} {condition}"
 
         file_name = (f"{courier_partner}"
