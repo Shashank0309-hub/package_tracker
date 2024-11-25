@@ -1,4 +1,6 @@
+import os
 import re
+import shutil
 from datetime import datetime, date
 from typing import List
 
@@ -385,53 +387,58 @@ class TrackerService:
             limit=25,
             order_id=None
     ):
-        file_path = await save_upload_file_tmp(upload_file)
-        df = pd.read_csv(file_path)
+        if courier_partner in [CourierPartnerName.SHIPROCKET]:
+            file_path = await save_upload_file_tmp(upload_file)
+            df = pd.read_csv(file_path)
 
-        self.cursor.execute(f"USE {DatabaseName};")
-        table_name = TableNames.get(courier_partner)
+            self.cursor.execute(f"USE {DatabaseName};")
+            table_name = TableNames.get(courier_partner)
 
-        if courier_partner == CourierPartnerName.SHIPROCKET:
-            query = await SqlQueries().get_shiprocket_update_payment_data(table_name)
+            if courier_partner == CourierPartnerName.SHIPROCKET:
+                query = await SqlQueries().get_shiprocket_update_payment_data(table_name)
 
-        for _, row in df.iterrows():
-            update_values = (row.get('remittance_status'), datetime.now(), row.get('ChannelOrderID'))
-            await self._execute_update(query, update_values)
+            for _, row in df.iterrows():
+                if courier_partner == CourierPartnerName.SHIPROCKET:
+                    update_values = ("YES" if row.get('Remittance Date') else "NO", datetime.now(), row.get('Order Id'))
+                await self._execute_update(query, update_values)
 
-        conditions = []
-        if payment_received:
-            condition = 'payment_received = "YES"'
-            conditions.append(condition)
-        elif payment_received == False:
-            condition = 'payment_received = "NO"'
-            conditions.append(condition)
-
-        if cod:
-            if courier_partner == CourierPartnerName.DTDC:
-                condition = 'is_cod = "YES"'
+            conditions = []
+            if payment_received:
+                condition = 'payment_received = "YES"'
                 conditions.append(condition)
-            elif courier_partner == CourierPartnerName.SHIPROCKET:
-                condition = 'payment_method = "cod"'
-                conditions.append(condition)
-        elif cod == False:
-            if courier_partner == CourierPartnerName.DTDC:
-                condition = 'is_cod = "NO"'
-                conditions.append(condition)
-            elif courier_partner == CourierPartnerName.SHIPROCKET:
-                condition = 'payment_method <> "cod"'
+            elif payment_received == False:
+                condition = 'payment_received = "NO"'
                 conditions.append(condition)
 
-        if order_id:
-            conditions.append(f'order_id = "{order_id}"')
+            if cod:
+                if courier_partner == CourierPartnerName.DTDC:
+                    condition = 'is_cod = "YES"'
+                    conditions.append(condition)
+                elif courier_partner == CourierPartnerName.SHIPROCKET:
+                    condition = 'payment_method = "cod"'
+                    conditions.append(condition)
+            elif cod == False:
+                if courier_partner == CourierPartnerName.DTDC:
+                    condition = 'is_cod = "NO"'
+                    conditions.append(condition)
+                elif courier_partner == CourierPartnerName.SHIPROCKET:
+                    condition = 'payment_method <> "cod"'
+                    conditions.append(condition)
 
-        condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            if order_id:
+                conditions.append(f'order_id = "{order_id}"')
 
-        if page_limit:
-            condition = f'{condition} LIMIT {limit} OFFSET {page * limit}'
+            condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-        query = f"SELECT * FROM {table_name} {condition};"
+            if page_limit:
+                condition = f'{condition} LIMIT {limit} OFFSET {page * limit}'
 
-        rows = await self._fetch_data(query)
-        df = pd.DataFrame(rows, columns=[i[0] for i in self.cursor.description])
+            query = f"SELECT * FROM {table_name} {condition};"
 
-        return df.to_dict(orient='records')
+            rows = await self._fetch_data(query)
+            df = pd.DataFrame(rows, columns=[i[0] for i in self.cursor.description])
+
+            return df.to_dict(orient='records')
+
+        else:
+            return {}
