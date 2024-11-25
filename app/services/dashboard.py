@@ -177,6 +177,7 @@ class DashboardService:
             "total_received_orders": total_received_orders,
             "total_payment_received": total_payment_received,
             "pending_payment": pending_payment,
+            "added_cost_list": all_additional_data,
             "additional_cost": additional_cost,
             "profit": profit,
             "courier_data": datas,
