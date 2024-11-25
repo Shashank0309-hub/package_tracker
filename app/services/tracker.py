@@ -113,6 +113,8 @@ class TrackerService:
             col_queries = SqlQueries().SHIPROCKET_DATA_COLS
         elif courier_partner == CourierPartnerName.DTDC:
             col_queries = SqlQueries().DTDC_DATA_COLS
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            col_queries = SqlQueries().SELLOSHIP_DATA_COLS
 
         if table_name and table_name not in tables:
             self.cursor.execute(f"CREATE TABLE {table_name} ({col_queries});")
@@ -158,7 +160,7 @@ class TrackerService:
         count = self.cursor.fetchone()[0]
         return count > 0
 
-    async def parse_date(self, date_str: str) -> date:
+    async def parse_date(self, date_str: str):
         normalized_date_str = re.sub(r'[-/.]', '-', date_str)
 
         try:
@@ -175,7 +177,7 @@ class TrackerService:
             else:
                 return datetime.strptime(normalized_date_str, "%d-%m-%y").date()
         except ValueError:
-            raise ValueError(f"Date format not recognized: {date_str}")
+            return None
 
     async def get_tracker_data_service(self, courier_partner, page, limit, upload_file):
         # Save the uploaded file and read it into a DataFrame
@@ -186,16 +188,21 @@ class TrackerService:
             df = df.sort_values('Created At').drop_duplicates(subset='CN #', keep='last')
         elif courier_partner == CourierPartnerName.SHIPROCKET:
             df = df.sort_values('Shiprocket Created At').drop_duplicates(subset='Order ID', keep='last')
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            df = df.sort_values('OrderDate').drop_duplicates(subset='OrderID', keep='last')
+            df['order_total'] = df['Amount'].fillna(0).astype(float) * df['Qty'].fillna(0).astype(float)
 
         # Select columns and format DataFrame based on the courier partner
         col_list, address_cols = await self._get_courier_column_list(courier_partner)
         df = df[col_list]
-        df['Customer Address'] = df[address_cols].apply(lambda x: ', '.join(x.dropna()), axis=1)
+        df['Customer Address'] = df[address_cols].apply(lambda x: ', '.join(x.dropna().astype(str)), axis=1)
 
         if courier_partner == CourierPartnerName.SHIPROCKET:
             pincode_dict = df['Address Pincode'].value_counts().to_dict()
         elif courier_partner == CourierPartnerName.DTDC:
             pincode_dict = df['Destination Pincode'].value_counts().to_dict()
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            pincode_dict = df['Pincode'].value_counts().to_dict()
 
         sorted_pincode_dict = dict(sorted(pincode_dict.items(), key=lambda item: item[1], reverse=True))
 
@@ -276,6 +283,11 @@ class TrackerService:
                         "Destination State", "Destination Pincode", "IS RTO", "Is COD", "Payment Received"]
             address_cols = ['Destination Address Line 1', 'Destination Address Line 2', 'Destination Address Line 3',
                             'Destination City', 'Destination State']
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            col_list = ["OrderID", "ChannelOrderID", "CustomerName", "ProductName", "ProductSku", "Amount", "Qty",
+                        "OrderDate", "RtoDate", "FullAddress", "Pincode", "State", "City",
+                        "TrackingID", "CourierName", "OrderStatus", "PaymentStatus", "remittance_status"]
+            address_cols = ['FullAddress', 'City', 'State', 'Pincode']
         return col_list, address_cols
 
     async def _get_query_for_courier(self, courier_partner, table_name):
@@ -288,6 +300,11 @@ class TrackerService:
             return (
                 await SqlQueries().get_dtdc_insert_tracker_data(table_name),
                 await SqlQueries().get_dtdc_update_tracker_data(table_name)
+            )
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            return (
+                await SqlQueries().get_selloship_insert_tracker_data(table_name),
+                await SqlQueries().get_selloship_update_tracker_data(table_name)
             )
 
     async def _get_values_for_courier(self, courier_partner, row, current_time):
@@ -306,10 +323,20 @@ class TrackerService:
         elif courier_partner == CourierPartnerName.DTDC:
             return (
                 row.get('CN #'), row.get('Status'), await self.parse_date(row.get('Created At')),
-                row.get('Amount to be Paid'),
+                row.get('Amount to be Paid', 0) * row.get('Number Of pieces', 0),
                 row.get('Number Of pieces'), row.get('Receiver Name'), row.get('Expected Delivery Date'),
                 row.get('Revised Expected Delivery Date'), row.get('Customer Address'), row.get('Destination Pincode'),
                 row.get('IS RTO'), row.get('Is COD'), row.get('Payment Received'),
+                current_time
+            )
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            return (
+                row.get('OrderID'), row.get('ChannelOrderID'), row.get('CustomerName'), row.get('ProductName'),
+                row.get('ProductSku'), row.get('Amount'), row.get('Qty'), await self.parse_date(row.get('OrderDate')),
+                await self.parse_date(row.get('RtoDate')), row.get('Customer Address'), row.get('Pincode'),
+                row.get('TrackingID'), row.get('CourierName'), row.get('OrderStatus'),
+                row.get('PaymentStatus').lower().replace("self", "").strip() if row.get('PaymentStatus') else None,
+                row.get('remittance_status'), row.get('Amount', 0) * row.get('Qty', 0),
                 current_time
             )
 
@@ -318,6 +345,8 @@ class TrackerService:
             return row.get('Order ID')
         elif courier_partner == CourierPartnerName.DTDC:
             return row.get('CN #')
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            return row.get('OrderID')
 
     async def _get_total_count(self, total_data_query):
         self.cursor.execute(total_data_query)
@@ -357,6 +386,9 @@ class TrackerService:
             conditions.append(f'rto_initiated_date is not null')
         elif courier_partner == CourierPartnerName.DTDC:
             conditions.append(f'is_rto = "YES"')
+        elif courier_partner == CourierPartnerName.SELLOSHIP:
+            conditions.append(f'rto_date is not null')
+
         condition = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
         query = f"SELECT * FROM {table_name} {condition};"

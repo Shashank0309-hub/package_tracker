@@ -5,6 +5,7 @@ TableNames = {
     CourierPartnerName.DELHIVERY: "delhivery_tracker_data",
     CourierPartnerName.DTDC: "dtdc_tracker_data",
     CourierPartnerName.SHIPROCKET: "shiprocket_tracker_data",
+    CourierPartnerName.SELLOSHIP: "selloship_tracker_data",
 }
 
 PincodeSKUTable = "pincode_sku"

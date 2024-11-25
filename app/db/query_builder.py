@@ -46,21 +46,42 @@ class SqlQueries:
         """
 
     DTDC_DATA_COLS = """
-            order_id VARCHAR(255),
-            status VARCHAR(255),
-            created_at VARCHAR(255),
-            amount_to_be_paid DECIMAL(10, 2),
-            product_quantity INT,
-            customer_name VARCHAR(255),
-            expected_delivery_date VARCHAR(255) NULL,
-            revised_expected_delivery_date VARCHAR(255) NULL,
-            customer_address TEXT,
-            customer_pincode INT,
-            is_rto VARCHAR(255) NULL,
-            is_cod VARCHAR(255) NULL,
-            payment_received VARCHAR(255),
-            updated_at DATETIME
-            """
+        order_id VARCHAR(255),
+        status VARCHAR(255),
+        created_at VARCHAR(255),
+        amount_to_be_paid DECIMAL(10, 2),
+        product_quantity INT,
+        customer_name VARCHAR(255),
+        expected_delivery_date VARCHAR(255) NULL,
+        revised_expected_delivery_date VARCHAR(255) NULL,
+        customer_address TEXT,
+        customer_pincode INT,
+        is_rto VARCHAR(255) NULL,
+        is_cod VARCHAR(255) NULL,
+        payment_received VARCHAR(255),
+        updated_at DATETIME
+        """
+
+    SELLOSHIP_DATA_COLS = """
+        order_id VARCHAR(255),
+        channel_order_id VARCHAR(255),
+        customer_name VARCHAR(255),
+        product_name VARCHAR(255),
+        product_sku VARCHAR(255),
+        amount DECIMAL(10, 2),
+        qty INT,
+        order_date VARCHAR(255),
+        rto_date VARCHAR(255) NULL,
+        customer_address TEXT,
+        customer_pincode INT,
+        tracking_id VARCHAR(255),
+        courier_name VARCHAR(255),
+        status VARCHAR(255) NULL,
+        payment_type VARCHAR(255) NULL,
+        payment_received ENUM('YES', 'NO') DEFAULT 'NO',
+        order_total DECIMAL(10, 2),
+        updated_at DATETIME
+        """
 
     # async def get_insert_tracker_data(self, table_name):
     #     return f"""
@@ -174,6 +195,55 @@ class SqlQueries:
             is_rto = %s,
             is_cod = %s,
             payment_received = %s,
+            updated_at = %s
+        WHERE order_id = %s
+        """
+
+    async def get_selloship_insert_tracker_data(self, table_name):
+        return f"""
+        INSERT INTO {table_name} (
+        order_id,
+        channel_order_id,
+        customer_name,
+        product_name,
+        product_sku,
+        amount,
+        qty,
+        order_date,
+        rto_date,
+        customer_address,
+        customer_pincode,
+        tracking_id,
+        courier_name,
+        status,
+        payment_type,
+        payment_received,
+        order_total,
+        updated_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+    async def get_selloship_update_tracker_data(self, table_name):
+        return f"""
+        UPDATE {table_name} 
+        SET 
+            channel_order_id = %s,
+            customer_name = %s,
+            product_name = %s,
+            product_sku = %s,
+            amount = %s,
+            qty = %s,
+            order_date = %s,
+            rto_date = %s,
+            customer_address = %s,
+            customer_pincode = %s,
+            tracking_id = %s,
+            courier_name = %s,
+            status = %s,
+            payment_type = %s,
+            payment_received = %s,
+            order_total = %s,
             updated_at = %s
         WHERE order_id = %s
         """

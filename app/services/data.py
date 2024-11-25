@@ -16,7 +16,8 @@ from app.schemas.tracker import CourierPartnerName
 
 order_date_col = {
     CourierPartnerName.SHIPROCKET: "shiprocket_created_at",
-    CourierPartnerName.DTDC: "created_at"
+    CourierPartnerName.DTDC: "created_at",
+    CourierPartnerName.SELLOSHIP: "order_date",
 }
 
 
@@ -46,7 +47,10 @@ class DataService:
 
         table_name = TableNames.get(courier_partner)
         if table_name and table_name not in tables:
-            self.cursor.execute(f"CREATE TABLE {table_name} ({SqlQueries().TRACKER_DATA_COLS});")
+            try:
+                self.cursor.execute(f"CREATE TABLE {table_name} ({SqlQueries().TRACKER_DATA_COLS});")
+            except:
+                pass
 
         return table_name
 
@@ -201,8 +205,8 @@ class DataService:
         try:
             self.cursor.execute(query, values)
             self.connector.commit()
-        except mysql.connector.Error as err:
-            raise HTTPException(status_code=500, detail=f"Database error: {err}")
+        except:
+            return "Data doesn't exist!"
 
         return "Deleted Successfully!"
 
@@ -222,6 +226,10 @@ class DataService:
             raise HTTPException(status_code=400, detail="Invalid courier partner")
 
         self.cursor.execute(f"USE {DatabaseName};")
+
+        self.cursor.execute(f"""SELECT count(*) FROM {table_name}""")
+        total_count = self.cursor.fetchall()[0][0]
+
         data = {}
         try:
             conditions = [
@@ -247,7 +255,7 @@ class DataService:
             df = pd.DataFrame(rows, columns=column_names)
 
             data = df.to_dict(orient="records")
-            return data, len(data)
+            return data, len(data) if len(data) < limit else total_count
         except Exception as err:
             logger.error(err)
             return data, len(data)

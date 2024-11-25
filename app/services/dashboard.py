@@ -16,12 +16,14 @@ from app.services.tracker import TrackerService
 
 amount_col = {
     CourierPartnerName.SHIPROCKET: "order_total",
+    CourierPartnerName.SELLOSHIP: "order_total",
     CourierPartnerName.DTDC: "amount_to_be_paid"
 }
 
 order_date_col = {
     CourierPartnerName.SHIPROCKET: "shiprocket_created_at",
-    CourierPartnerName.DTDC: "created_at"
+    CourierPartnerName.DTDC: "created_at",
+    CourierPartnerName.SELLOSHIP: "order_date",
 }
 
 
@@ -30,11 +32,13 @@ class DashboardService:
         self.connector = mysql_connector.connection
         self.cursor = self.connector.cursor()
 
-    async def parse_date(self, date_str: str) -> date:
+    async def parse_date(self, date_str: str, courier_partner: CourierPartnerName) -> date:
         normalized_date_str = re.sub(r'[-/.]', '-', date_str)
 
         try:
             if len(normalized_date_str.split('-')[0]) == 4:
+                if courier_partner == CourierPartnerName.SELLOSHIP:
+                    return datetime.strptime(normalized_date_str, "%Y-%m-%d").date()
                 return datetime.strptime(normalized_date_str, "%Y-%m-%d %H:%M:%S").date()
 
             if len(normalized_date_str.split('-')[2]) == 4:
@@ -267,10 +271,18 @@ class DashboardService:
                     },
                     inplace=True
                 )
-                df[date_col] = [await self.parse_date(x) for x in df[date_col]]
+                df[date_col] = [await self.parse_date(x, courier_partner) for x in df[date_col]]
                 dfs = pd.concat([dfs, df], ignore_index=True)
 
-            dfs = dfs.groupby(date_col)["amount"].sum().reset_index()
+            dfs = (
+                dfs.groupby(date_col)
+                .agg(
+                    amount=("amount", "sum"),
+                    num_of_orders=("amount", "count")
+                )
+                .reset_index()
+                .sort_values(by=date_col, ascending=False)
+            )
 
             data = dfs.to_dict(orient="records")
             return data

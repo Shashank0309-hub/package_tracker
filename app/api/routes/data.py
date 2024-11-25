@@ -18,7 +18,7 @@ router = APIRouter(prefix="/v1/data")
 #     return tracker_response
 
 @router.get("/get", name=Routes.GET_DATA, status_code=HTTP_200_OK)
-async def download_data(tracker_response: GlobalResponse = Depends(get_data_dep)):
+async def get_data(tracker_response: GlobalResponse = Depends(get_data_dep)):
     return tracker_response
 
 
